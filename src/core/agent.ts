@@ -1,6 +1,6 @@
 import type { IMessage } from "didcomm";
 
-import { Message } from "../didcomm/wasm.js";
+import { initDidcomm, Message } from "../didcomm/wasm.js";
 import { base64urlToUtf8 } from "../didcomm/base64.js";
 import { resolveDIDCommDoc } from "../didcomm/did-resolver.js";
 import type { DIDDoc, Secret } from "../didcomm/types.js";
@@ -129,6 +129,11 @@ export class ProfileAgent {
 
   async start(): Promise<void> {
     try {
+      // A freshly minted profile can start before the WASM download finishes;
+      // nothing below can pack or unpack until it has.
+      this.events.onStatus({ state: "connecting", detail: "loading didcomm" });
+      await initDidcomm();
+
       this.events.onStatus({ state: "connecting", detail: "resolving mediator" });
       this.mediatorDoc = await resolveDIDCommDoc(this.profile.mediatorDid);
       if (this.mediatorDoc === null) {
