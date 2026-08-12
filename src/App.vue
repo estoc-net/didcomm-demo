@@ -8,6 +8,7 @@ import ChatPane from "./ui/ChatPane.vue";
 import InspectorPane from "./ui/InspectorPane.vue";
 import { CUSTOM, useMediatorInput } from "./ui/mediator-input.js";
 import ProfileRail from "./ui/ProfileRail.vue";
+import { suggestName } from "./ui/util.js";
 
 const profile = computed(() => activeProfile());
 
@@ -40,7 +41,7 @@ const selectedMessage = computed<ChatMessage | null>(
 );
 
 // first-run onboarding
-const firstName = ref("");
+const firstName = ref(suggestName(state.profiles));
 const {
   choice: firstMediator,
   pasted: firstInvitation,

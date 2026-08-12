@@ -11,7 +11,7 @@ import {
 } from "../core/store.js";
 import type { AgentStatus } from "../core/types.js";
 import { CUSTOM, useMediatorInput } from "./mediator-input.js";
-import { shortDid } from "./util.js";
+import { shortDid, suggestName } from "./util.js";
 
 const profile = computed(() => activeProfile());
 const runtime = computed(() =>
@@ -20,6 +20,11 @@ const runtime = computed(() =>
 
 const showMintForm = ref(false);
 const newName = ref("");
+
+function openMintForm() {
+  newName.value = suggestName(state.profiles);
+  showMintForm.value = true;
+}
 const {
   choice: newMediator,
   pasted: newInvitation,
@@ -132,7 +137,7 @@ function removeProfile(id: string, name: string) {
         <p v-if="mintError" class="status-line error">{{ mintError }}</p>
         <button class="btn" type="submit" :disabled="resolving">Mint identity</button>
       </form>
-      <button v-else class="btn-quiet" style="margin-top: 8px" @click="showMintForm = true">
+      <button v-else class="btn-quiet" style="margin-top: 8px" @click="openMintForm">
         + new profile
       </button>
     </div>
