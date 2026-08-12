@@ -98,7 +98,8 @@ function plainMessage(
     type,
     from,
     to: [to],
-    created_time: Date.now(),
+    // The spec wants UTC epoch seconds, not milliseconds.
+    created_time: Math.floor(Date.now() / 1000),
     body,
   } as IMessage;
 }
@@ -166,9 +167,17 @@ export class ProfileAgent {
     this.ws = null;
   }
 
-  /** Seal a message from the mediator-facing DID to the mediator itself. */
+  /**
+   * Seal a message from the mediator-facing DID to the mediator itself.
+   * Every such request declares the connection it arrives on as its return
+   * route — messagepickup 3.0 requires clients to say so explicitly, once
+   * per WebSocket and on every HTTP POST.
+   */
   private async packForMediator(message: IMessage): Promise<string> {
-    const [packed] = await new Message(message).pack_encrypted(
+    const [packed] = await new Message({
+      ...message,
+      return_route: "all",
+    } as IMessage).pack_encrypted(
       this.profile.mediatorDid,
       this.profile.didForMediator.did,
       null,
@@ -232,7 +241,7 @@ export class ProfileAgent {
     }
     this.events.onLog(`mediate-grant received; routing DID is the mediator`);
 
-    const publicIdentity = mintIdentity(routingDid, false);
+    const publicIdentity = mintIdentity(routingDid);
     this.profile.did = publicIdentity.did;
     this.profile.secrets = publicIdentity.secrets;
 
@@ -363,7 +372,14 @@ export class ProfileAgent {
         direction: "received",
         contactDid: inner.from ?? "unknown",
         content: String((inner.body as { content?: unknown }).content ?? ""),
-        time: typeof inner.created_time === "number" ? inner.created_time : Date.now(),
+        // created_time is spec'd in epoch seconds; tolerate senders (and our
+        // own pre-fix history) that used milliseconds.
+        time:
+          typeof inner.created_time !== "number"
+            ? Date.now()
+            : inner.created_time < 1e12
+              ? inner.created_time * 1000
+              : inner.created_time,
         layers,
       };
       this.profile.messages.push(message);
@@ -513,7 +529,7 @@ export class ProfileAgent {
         typ: PLAIN_TYP,
         type: FORWARD,
         to: [routingDid],
-        created_time: Date.now(),
+        created_time: Math.floor(Date.now() / 1000),
         body: { next: contactDid },
         attachments: [
           {

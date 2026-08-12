@@ -6,11 +6,12 @@ import type { Secret } from "@estoc/did-peer";
 
 /**
  * Minting a demo agent identity: a Multikey did:peer:4 long form with one
- * Ed25519 authentication key and one X25519 key agreement key — the exact
- * document shape the mediator-ts demo-interop test pins, which is itself the
- * DIF didcomm-demo's shape. Two of these make up a profile: one whose service
- * is the queue transport (the DID the mediator knows), and one whose service
- * is the mediator's DID (the public DID a correspondent writes to).
+ * Ed25519 authentication key and one X25519 key agreement key — the document
+ * shape the mediator-ts demo-interop test pins. Two of these make up a
+ * profile: one with no service at all (the DID the mediator knows — its mail
+ * is picked up, never pushed), and one whose service is the mediator's DID
+ * (the public DID a correspondent writes to, DIDComm v2 routing's blessed
+ * shape).
  */
 
 export interface AgentIdentity {
@@ -29,10 +30,7 @@ function multibaseKey(prefix: number[], publicKey: Uint8Array): string {
   return `z${bs58.encode(bytes)}`;
 }
 
-export function mintIdentity(
-  serviceUri: string,
-  withRoutingKeys: boolean
-): AgentIdentity {
+export function mintIdentity(serviceUri: string | null): AgentIdentity {
   const edPriv = ed25519.utils.randomPrivateKey();
   const edPub = ed25519.getPublicKey(edPriv);
   const xPriv = x25519.utils.randomPrivateKey();
@@ -58,17 +56,20 @@ export function mintIdentity(
     authentication: ["#key-1"],
     capabilityDelegation: ["#key-1"],
     keyAgreement: ["#key-2"],
-    service: [
-      {
-        type: "DIDCommMessaging",
-        id: "#service",
-        serviceEndpoint: {
-          uri: serviceUri,
-          accept: ["didcomm/v2"],
-          ...(withRoutingKeys ? { routingKeys: [] as string[] } : {}),
-        },
-      },
-    ],
+    ...(serviceUri === null
+      ? {}
+      : {
+          service: [
+            {
+              type: "DIDCommMessaging",
+              id: "#service",
+              serviceEndpoint: {
+                uri: serviceUri,
+                accept: ["didcomm/v2"],
+              },
+            },
+          ],
+        }),
   });
 
   const secrets: Secret[] = [

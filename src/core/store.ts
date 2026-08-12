@@ -82,7 +82,10 @@ export function createProfile(name: string, mediatorDid: string): ProfileData {
     id: crypto.randomUUID(),
     name,
     mediatorDid,
-    didForMediator: mintIdentity("didcomm:transport/queue", true),
+    // No service: this DID's mail is picked up from the mediator, never
+    // pushed to an endpoint. (`didcomm:transport/queue` was an Aries-era
+    // convention that never made it into the DIDComm v2 spec.)
+    didForMediator: mintIdentity(null),
     did: null,
     secrets: [],
     contacts: [],
