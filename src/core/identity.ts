@@ -1,9 +1,8 @@
 import { ed25519, x25519 } from "@noble/curves/ed25519";
 import bs58 from "bs58";
 
-import { bytesToBase64url } from "../didcomm/base64.js";
-import { encodeLongForm } from "../didcomm/did-peer-4.js";
-import type { Secret } from "../didcomm/types.js";
+import { bytesToBase64url, encodeLongForm } from "@estoc/did-peer";
+import type { Secret } from "@estoc/did-peer";
 
 /**
  * Minting a demo agent identity: a Multikey did:peer:4 long form with one

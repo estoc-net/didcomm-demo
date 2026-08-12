@@ -13,6 +13,7 @@
     "deploy": "npm run build && wrangler deploy"
   },
   "dependencies": {
+    "@estoc/did-peer": "^0.1.0",
     "@noble/curves": "^1.9.0",
     "@noble/hashes": "^1.8.0",
     "bs58": "^6.0.0",

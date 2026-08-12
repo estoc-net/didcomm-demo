@@ -1,4 +1,4 @@
-import type { Secret } from "../didcomm/types.js";
+import type { Secret } from "@estoc/did-peer";
 
 /**
  * One captured layer of a message's envelope onion, in transmission order for

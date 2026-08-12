@@ -1,9 +1,8 @@
 import type { IMessage } from "didcomm";
 
 import { initDidcomm, Message } from "../didcomm/wasm.js";
-import { base64urlToUtf8 } from "../didcomm/base64.js";
-import { resolveDIDCommDoc } from "../didcomm/did-resolver.js";
-import type { DIDDoc, Secret } from "../didcomm/types.js";
+import { base64urlToUtf8, resolveDIDCommDoc } from "@estoc/did-peer";
+import type { DIDDoc, Secret } from "@estoc/did-peer";
 import { mintIdentity } from "./identity.js";
 import type {
   AgentStatus,
