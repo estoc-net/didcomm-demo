@@ -7,15 +7,21 @@
  *   node scripts/e2e.mjs [demo-url]        (default http://localhost:5199)
  *
  * The mediator both profiles use is whatever the demo's mediator dropdown
- * offers — the script picks the localhost entry unless E2E_MEDIATOR=estoc.
+ * offers — the script picks the localhost entry unless E2E_MEDIATOR=estoc
+ * (production under its did:peer:2 name) or E2E_MEDIATOR=web (production
+ * under did:web:mediator.estoc.dev).
  */
 import { chromium } from "playwright-core";
 
 const DEMO_URL = process.argv[2] ?? "http://localhost:5199";
 const MEDIATOR_LABEL =
-  process.env.E2E_MEDIATOR === "estoc" ? "mediator.estoc.dev" : "localhost:8080";
-const MEDIATOR_URL =
   process.env.E2E_MEDIATOR === "estoc"
+    ? "mediator.estoc.dev"
+    : process.env.E2E_MEDIATOR === "web"
+      ? "mediator.estoc.dev (did:web)"
+      : "localhost:8080";
+const MEDIATOR_URL =
+  process.env.E2E_MEDIATOR === "estoc" || process.env.E2E_MEDIATOR === "web"
     ? "https://mediator.estoc.dev"
     : "http://localhost:8080";
 
@@ -59,7 +65,7 @@ async function mintProfile(page, name, invitationUrl = null) {
 async function addContact(page, label, did) {
   await page.click('button:has-text("+ contact")');
   await page.fill('input[placeholder="name, e.g. Bob"]', label);
-  await page.fill('input[placeholder="paste their DID (did:peer:4…)"]', did);
+  await page.fill('input[placeholder="paste their DID (did:peer:4… or did:web:…)"]', did);
   await page.click('button:has-text("Add contact")');
 }
 

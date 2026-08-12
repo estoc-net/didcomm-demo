@@ -9,11 +9,19 @@ import { base64urlToUtf8, resolvePeer2, toDIDCommDIDDoc } from "@estoc/did-peer"
 export const ESTOC_MEDIATOR =
   "did:peer:2.Ez6LSfL95Zj6FJmsiTPSqc4NkMWWmZbSUjJsDzjg6Lh6XXpVj.Vz6Mkr4MAov1H2MtYYqN1eiFnTd3wXKSjP5gFNtmnqHmXAFQf.SeyJ0IjoiZG0iLCJzIjp7InVyaSI6Imh0dHBzOi8vbWVkaWF0b3IuZXN0b2MuZGV2IiwiYSI6WyJkaWRjb21tL3YyIl19fQ.SeyJ0IjoiZG0iLCJzIjp7InVyaSI6IndzczovL21lZGlhdG9yLmVzdG9jLmRldiIsImEiOlsiZGlkY29tbS92MiJdfX0";
 
+/**
+ * The same mediator (same keys, same endpoints) under its did:web name —
+ * resolved from https://mediator.estoc.dev/.well-known/did.json instead of
+ * decoded from the DID itself.
+ */
+export const ESTOC_MEDIATOR_WEB = "did:web:mediator.estoc.dev";
+
 export const LOCAL_MEDIATOR =
   "did:peer:2.Ez6LSjXVLw9R8NLHtZHnV6bkKtXk4ZFzq1HyMxLuHrnd6xVDr.Vz6MkhwrTT4ctMXvQGtPiLr61qwa9mqDaLH7Ghebi62rbaQYQ.SeyJ0IjoiZG0iLCJzIjp7InVyaSI6Imh0dHA6Ly9sb2NhbGhvc3Q6ODA4MCIsImEiOlsiZGlkY29tbS92MiJdfX0.SeyJ0IjoiZG0iLCJzIjp7InVyaSI6IndzOi8vbG9jYWxob3N0OjgwODAiLCJhIjpbImRpZGNvbW0vdjIiXX19";
 
 export const MEDIATOR_CHOICES = [
   { label: "mediator.estoc.dev", did: ESTOC_MEDIATOR },
+  { label: "mediator.estoc.dev (did:web)", did: ESTOC_MEDIATOR_WEB },
   { label: "localhost:8080", did: LOCAL_MEDIATOR },
 ];
 
@@ -79,6 +87,10 @@ export function mediatorLabel(did: string): string {
   const known = MEDIATOR_CHOICES.find((choice) => choice.did === did);
   if (known !== undefined) {
     return known.label;
+  }
+  if (did.startsWith("did:web:")) {
+    // The DID is the domain: decode the host, drop any path segments.
+    return decodeURIComponent(did.slice("did:web:".length).split(":")[0]);
   }
   try {
     const uri = toDIDCommDIDDoc(resolvePeer2(did))
