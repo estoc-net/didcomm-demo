@@ -23,9 +23,9 @@ npm install
 npm run dev
 ```
 
-Profiles default to `mediator.estoc.dev` ([mediator-ts] on Cloudflare
+Profiles default to `mediator.estoc.dev` ([didcomm-mediator] on Cloudflare
 Workers); the dropdown also offers a local mediator (`npm run dev` in the
-mediator-ts repo, minted with `MEDIATOR_PUBLIC_URL=http://localhost:8080`).
+didcomm-mediator repo, minted with `MEDIATOR_PUBLIC_URL=http://localhost:8080`).
 For a one-browser demo, mint two profiles and introduce them to each other by
 copying DIDs from the left rail.
 
@@ -51,7 +51,7 @@ surviving a reload.
 - **Identities** are Multikey `did:peer:4` long forms (Ed25519 + X25519 via
   @noble/curves). Each profile holds two: one facing the mediator (service
   `didcomm:transport/queue`) and a public one whose service endpoint *is* the
-  mediator's DID — the shapes pinned by mediator-ts's `demo-interop` test.
+  mediator's DID — the shapes pinned by didcomm-mediator's `demo-interop` test.
 - **Packing is done by hand in two steps** (inner authcrypt, then an explicit
   `routing/2.0/forward` sealed anoncrypt to the mediator) instead of letting
   didcomm-rust wrap the forward internally. Same wire bytes; every layer
