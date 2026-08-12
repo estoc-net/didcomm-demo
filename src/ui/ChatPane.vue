@@ -105,7 +105,7 @@ watch(
         </p>
         <form @submit.prevent="add">
           <input v-model="newLabel" class="field" placeholder="name, e.g. Bob" />
-          <input v-model="newDid" class="field" placeholder="paste their DID (did:peer:4…)" />
+          <input v-model="newDid" class="field" placeholder="paste their DID (did:peer:4… or did:web:…)" />
           <p v-if="addError" class="compose-error" style="padding: 0">{{ addError }}</p>
           <button class="btn" type="submit">Add contact</button>
         </form>

@@ -38,9 +38,13 @@ const hops = computed(() => {
   }
   const me = props.profileName;
   const them = contactLabel.value;
-  return props.message.direction === "sent"
-    ? { from: me, via: `${them}'s mediator`, to: them }
-    : { from: them, via: "your mediator", to: me };
+  if (props.message.direction === "sent") {
+    // No forward layer means the contact's endpoint took the envelope
+    // directly (e.g. a did:web contact) — there is no mediator on the path.
+    const direct = !props.message.layers.some((layer) => layer.kind === "forward");
+    return { from: me, via: direct ? null : `${them}'s mediator`, to: them };
+  }
+  return { from: them, via: "your mediator", to: me };
 });
 </script>
 
@@ -61,13 +65,21 @@ const hops = computed(() => {
         <div class="hops">
           <span class="stop">{{ hops.from }}</span>
           <span class="leg"></span>
-          <span class="stop blind">{{ hops.via }}</span>
-          <span class="leg"></span>
+          <template v-if="hops.via !== null">
+            <span class="stop blind">{{ hops.via }}</span>
+            <span class="leg"></span>
+          </template>
           <span class="stop">{{ hops.to }}</span>
         </div>
         <p class="hop-note">
-          The mediator in the middle stores and forwards this message without
-          being able to read it{{ message.direction === "sent" ? " or see who sent it" : "" }}.
+          <template v-if="hops.via !== null">
+            The mediator in the middle stores and forwards this message without
+            being able to read it{{ message.direction === "sent" ? " or see who sent it" : "" }}.
+          </template>
+          <template v-else>
+            This contact's DID names its own HTTPS endpoint, so the envelope
+            went straight there — no mediator, no forward layer.
+          </template>
           Outermost layer first — peel inward.
         </p>
         <LayerOnion :layers="ordered" />

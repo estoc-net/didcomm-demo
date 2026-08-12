@@ -18,8 +18,10 @@
     "@noble/curves": "^1.9.0",
     "@noble/hashes": "^1.8.0",
     "bs58": "^6.0.0",
+    "did-resolver": "^4.1.0",
     "didcomm": "^0.4.1",
-    "vue": "^3.5.0"
+    "vue": "^3.5.0",
+    "web-did-resolver": "^2.0.32"
   },
   "devDependencies": {
     "@vitejs/plugin-vue": "^5.2.0",

@@ -1,8 +1,9 @@
 import type { IMessage } from "didcomm";
 
 import { initDidcomm, Message } from "../didcomm/wasm.js";
-import { base64urlToUtf8, resolveDIDCommDoc } from "@estoc/did-peer";
+import { base64urlToUtf8 } from "@estoc/did-peer";
 import type { DIDDoc, Secret } from "@estoc/did-peer";
+import { resolveDid } from "./resolver.js";
 import { mintIdentity } from "./identity.js";
 import type {
   AgentStatus,
@@ -45,7 +46,7 @@ const BASIC_MESSAGE = "https://didcomm.org/basicmessage/2.0/message";
 const PLAIN_TYP = "application/didcomm-plain+json";
 const ENCRYPTED_MIME = "application/didcomm-encrypted+json";
 
-const didResolver = { resolve: resolveDIDCommDoc };
+const didResolver = { resolve: resolveDid };
 
 export interface AgentEvents {
   onStatus(status: AgentStatus): void;
@@ -135,7 +136,7 @@ export class ProfileAgent {
       await initDidcomm();
 
       this.events.onStatus({ state: "connecting", detail: "resolving mediator" });
-      this.mediatorDoc = await resolveDIDCommDoc(this.profile.mediatorDid);
+      this.mediatorDoc = await resolveDid(this.profile.mediatorDid);
       if (this.mediatorDoc === null) {
         throw new Error("mediator DID does not resolve");
       }
@@ -472,7 +473,7 @@ export class ProfileAgent {
       throw new Error("no public DID yet — mediation has not completed");
     }
 
-    const contactDoc = await resolveDIDCommDoc(contactDid);
+    const contactDoc = await resolveDid(contactDid);
     if (contactDoc === null) {
       throw new Error("contact DID does not resolve");
     }
@@ -518,7 +519,7 @@ export class ProfileAgent {
       // The contact lives behind a mediator: wrap a forward and seal it
       // anonymously to that mediator.
       const routingDid = contactService;
-      const routingDoc = await resolveDIDCommDoc(routingDid);
+      const routingDoc = await resolveDid(routingDid);
       const httpEndpoint = routingDoc === null ? null : endpointOf(routingDoc, "http");
       if (httpEndpoint === null) {
         throw new Error("contact's mediator has no HTTP endpoint");
