@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from "vue";
 
-import { MEDIATOR_CHOICES } from "../core/mediators.js";
+import { MEDIATOR_CHOICES, mediatorLabel } from "../core/mediators.js";
 import {
   activeProfile,
   createProfile,
@@ -10,6 +10,7 @@ import {
   state,
 } from "../core/store.js";
 import type { AgentStatus } from "../core/types.js";
+import { CUSTOM, useMediatorInput } from "./mediator-input.js";
 import { shortDid } from "./util.js";
 
 const profile = computed(() => activeProfile());
@@ -19,15 +20,26 @@ const runtime = computed(() =>
 
 const showMintForm = ref(false);
 const newName = ref("");
-const newMediator = ref(MEDIATOR_CHOICES[0].did);
+const {
+  choice: newMediator,
+  pasted: newInvitation,
+  resolving,
+  error: mintError,
+  resolveChoice,
+} = useMediatorInput();
 
-function mint() {
+async function mint() {
   const name = newName.value.trim();
   if (name === "") {
     return;
   }
-  createProfile(name, newMediator.value);
+  const mediatorDid = await resolveChoice();
+  if (mediatorDid === null) {
+    return;
+  }
+  createProfile(name, mediatorDid);
   newName.value = "";
+  newInvitation.value = "";
   showMintForm.value = false;
 }
 
@@ -66,10 +78,6 @@ function statusText(status: AgentStatus | null): string {
     default:
       return "starting";
   }
-}
-
-function mediatorLabel(did: string): string {
-  return MEDIATOR_CHOICES.find((choice) => choice.did === did)?.label ?? "custom mediator";
 }
 
 function removeProfile(id: string, name: string) {
@@ -113,8 +121,16 @@ function removeProfile(id: string, name: string) {
           <option v-for="choice in MEDIATOR_CHOICES" :key="choice.did" :value="choice.did">
             {{ choice.label }}
           </option>
+          <option :value="CUSTOM">paste an invitation…</option>
         </select>
-        <button class="btn" type="submit">Mint identity</button>
+        <input
+          v-if="newMediator === CUSTOM"
+          v-model="newInvitation"
+          class="field"
+          placeholder="invitation URL, mediator URL, or DID"
+        />
+        <p v-if="mintError" class="status-line error">{{ mintError }}</p>
+        <button class="btn" type="submit" :disabled="resolving">Mint identity</button>
       </form>
       <button v-else class="btn-quiet" style="margin-top: 8px" @click="showMintForm = true">
         + new profile

@@ -14,6 +14,10 @@ import { chromium } from "playwright-core";
 const DEMO_URL = process.argv[2] ?? "http://localhost:5199";
 const MEDIATOR_LABEL =
   process.env.E2E_MEDIATOR === "estoc" ? "mediator.estoc.dev" : "localhost:8080";
+const MEDIATOR_URL =
+  process.env.E2E_MEDIATOR === "estoc"
+    ? "https://mediator.estoc.dev"
+    : "http://localhost:8080";
 
 const executablePath = "/usr/bin/chromium";
 
@@ -26,10 +30,19 @@ function ok(message) {
   console.log(`✓ ${message}`);
 }
 
-async function mintProfile(page, name) {
+async function mintProfile(page, name, invitationUrl = null) {
   await page.goto(DEMO_URL);
   await page.fill('input[placeholder="a name, e.g. Alice"]', name);
-  await page.selectOption("select.field", { label: `via ${MEDIATOR_LABEL}` });
+  if (invitationUrl === null) {
+    await page.selectOption("select.field", { label: `via ${MEDIATOR_LABEL}` });
+  } else {
+    // The OOB path: pick the paste entry and hand over the invitation URL.
+    await page.selectOption("select.field", { label: "via a pasted invitation…" });
+    await page.fill(
+      'input[placeholder="invitation URL, mediator URL, or DID"]',
+      invitationUrl
+    );
+  }
   await page.click('button:has-text("Mint identity")');
   await page.waitForSelector('text=live delivery on', { timeout: 20000 });
   const did = await page.evaluate(() => {
@@ -78,7 +91,14 @@ try {
     page.on("pageerror", (err) => console.error(`[${name} pageerror] ${err}`));
   }
 
-  const aliceDid = await mintProfile(alice, "Alice");
+  // Alice onboards the standard way — pasting the mediator's OOB invitation
+  // URL; Bob uses the dropdown, so both bootstrap paths stay covered.
+  const { invitationUrl } = await (await fetch(MEDIATOR_URL)).json();
+  if (typeof invitationUrl !== "string" || !invitationUrl.includes("_oob=")) {
+    throw new Error(`mediator at ${MEDIATOR_URL} publishes no invitation URL`);
+  }
+  const aliceDid = await mintProfile(alice, "Alice", invitationUrl);
+  ok("Alice minted via a pasted OOB invitation URL");
   const bobDid = await mintProfile(bob, "Bob");
 
   await addContact(alice, "Bob", bobDid);

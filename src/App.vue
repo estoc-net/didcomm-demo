@@ -6,6 +6,7 @@ import { activeProfile, createProfile, state } from "./core/store.js";
 import type { ChatMessage } from "./core/types.js";
 import ChatPane from "./ui/ChatPane.vue";
 import InspectorPane from "./ui/InspectorPane.vue";
+import { CUSTOM, useMediatorInput } from "./ui/mediator-input.js";
 import ProfileRail from "./ui/ProfileRail.vue";
 
 const profile = computed(() => activeProfile());
@@ -40,14 +41,24 @@ const selectedMessage = computed<ChatMessage | null>(
 
 // first-run onboarding
 const firstName = ref("");
-const firstMediator = ref(MEDIATOR_CHOICES[0].did);
+const {
+  choice: firstMediator,
+  pasted: firstInvitation,
+  resolving,
+  error: mintError,
+  resolveChoice,
+} = useMediatorInput();
 
-function mintFirst() {
+async function mintFirst() {
   const name = firstName.value.trim();
   if (name === "") {
     return;
   }
-  createProfile(name, firstMediator.value);
+  const mediatorDid = await resolveChoice();
+  if (mediatorDid === null) {
+    return;
+  }
+  createProfile(name, mediatorDid);
 }
 </script>
 
@@ -71,8 +82,18 @@ function mintFirst() {
           <option v-for="choice in MEDIATOR_CHOICES" :key="choice.did" :value="choice.did">
             via {{ choice.label }}
           </option>
+          <option :value="CUSTOM">via a pasted invitation…</option>
         </select>
-        <button class="btn" type="submit">Mint identity &amp; request mediation</button>
+        <input
+          v-if="firstMediator === CUSTOM"
+          v-model="firstInvitation"
+          class="field"
+          placeholder="invitation URL, mediator URL, or DID"
+        />
+        <p v-if="mintError" class="status-line error">{{ mintError }}</p>
+        <button class="btn" type="submit" :disabled="resolving">
+          Mint identity &amp; request mediation
+        </button>
       </form>
     </div>
   </div>
