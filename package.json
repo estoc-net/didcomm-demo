@@ -4,6 +4,7 @@
   "version": "0.1.0",
   "type": "module",
   "description": "A see-through DIDComm v2 messenger: chat between browser profiles through a mediator, with every envelope layer of every message open for inspection.",
+  "license": "Apache-2.0",
   "scripts": {
     "dev": "vite",
     "build": "vue-tsc -b && vite build",
