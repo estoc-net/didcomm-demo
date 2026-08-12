@@ -58,10 +58,21 @@ surviving a reload.
   passes through our hands so every layer can be shown.
 - **Protocols**: coordinate-mediation/3.0, messagepickup/3.0 (drain on start,
   live delivery over WebSocket, acks over HTTP), routing/2.0, basicmessage/2.0.
-- **`src/didcomm/`** is copied lineage shared with [mediator-ts] and
-  didcomm-http (did:peer:2/4, DIDDoc normalization), browser-trimmed; fixes
-  belong in every copy. The didcomm WASM is instantiated manually in
-  `src/didcomm/wasm.ts` — the npm package's entry is webpack-shaped and Vite
-  needs the same shim mediator-ts uses on workerd, made async.
+- **did:peer lineage** (peer:2/4 codec, DIDDoc normalization) comes from
+  [@estoc/did-peer], shared with [didcomm-mediator] and didcomm-http. Only the
+  WASM shim stays local: the didcomm npm package's entry is webpack-shaped, so
+  `src/didcomm/wasm.ts` instantiates it manually — the same shim
+  didcomm-mediator uses on workerd, made async.
 
-[mediator-ts]: https://github.com/estoc-net/mediator-ts
+## Status
+
+A demonstration, not a product: identities live in localStorage and nothing
+here has received an independent security audit. Use it to see how DIDComm
+works, not to carry real secrets.
+
+## License
+
+Apache-2.0
+
+[@estoc/did-peer]: https://github.com/estoc-net/did-peer
+[didcomm-mediator]: https://github.com/estoc-net/didcomm-mediator
