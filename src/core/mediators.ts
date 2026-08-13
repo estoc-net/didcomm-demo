@@ -4,6 +4,11 @@ import { base64urlToUtf8, resolvePeer2, toDIDCommDIDDoc } from "@estoc/did-peer"
  * Known mediators. The default is Estoc's own mediator-ts on Cloudflare
  * Workers; the local one is `npm run dev` in the mediator-ts repo, whose
  * identity is minted from MEDIATOR_PUBLIC_URL=http://localhost:8080.
+ *
+ * A fork points the demo at its own mediator without touching this file:
+ * VITE_MEDIATOR_DID at build time (e.g. in .env.production) replaces the
+ * Estoc entries as the default dropdown choice, labelled by the host its
+ * DID names.
  */
 
 export const ESTOC_MEDIATOR =
@@ -19,11 +24,21 @@ export const ESTOC_MEDIATOR_WEB = "did:web:mediator.estoc.dev";
 export const LOCAL_MEDIATOR =
   "did:peer:2.Ez6LSjXVLw9R8NLHtZHnV6bkKtXk4ZFzq1HyMxLuHrnd6xVDr.Vz6MkhwrTT4ctMXvQGtPiLr61qwa9mqDaLH7Ghebi62rbaQYQ.SeyJ0IjoiZG0iLCJzIjp7InVyaSI6Imh0dHA6Ly9sb2NhbGhvc3Q6ODA4MCIsImEiOlsiZGlkY29tbS92MiJdfX0.SeyJ0IjoiZG0iLCJzIjp7InVyaSI6IndzOi8vbG9jYWxob3N0OjgwODAiLCJhIjpbImRpZGNvbW0vdjIiXX19";
 
-export const MEDIATOR_CHOICES = [
-  { label: "mediator.estoc.dev", did: ESTOC_MEDIATOR },
-  { label: "mediator.estoc.dev (did:web)", did: ESTOC_MEDIATOR_WEB },
-  { label: "localhost:8080", did: LOCAL_MEDIATOR },
-];
+const CUSTOM_MEDIATOR = import.meta.env.VITE_MEDIATOR_DID?.trim();
+
+const LOCAL_CHOICE = { label: "localhost:8080", did: LOCAL_MEDIATOR };
+
+export const MEDIATOR_CHOICES =
+  CUSTOM_MEDIATOR !== undefined && CUSTOM_MEDIATOR !== ""
+    ? [
+        { label: didHost(CUSTOM_MEDIATOR) ?? "custom mediator", did: CUSTOM_MEDIATOR },
+        LOCAL_CHOICE,
+      ]
+    : [
+        { label: "mediator.estoc.dev", did: ESTOC_MEDIATOR },
+        { label: "mediator.estoc.dev (did:web)", did: ESTOC_MEDIATOR_WEB },
+        LOCAL_CHOICE,
+      ];
 
 export const OOB_INVITATION =
   "https://didcomm.org/out-of-band/2.0/invitation";
@@ -82,12 +97,8 @@ export async function resolveMediatorInput(input: string): Promise<string> {
   return body.did;
 }
 
-/** A human name for a mediator DID: the known label, or its HTTP endpoint host. */
-export function mediatorLabel(did: string): string {
-  const known = MEDIATOR_CHOICES.find((choice) => choice.did === did);
-  if (known !== undefined) {
-    return known.label;
-  }
+/** The host a DID names: the did:web domain, or a did:peer:2 HTTP endpoint's. */
+function didHost(did: string): string | undefined {
   if (did.startsWith("did:web:")) {
     // The DID is the domain: decode the host, drop any path segments.
     return decodeURIComponent(did.slice("did:web:".length).split(":")[0]);
@@ -104,7 +115,16 @@ export function mediatorLabel(did: string): string {
       return new URL(uri).host;
     }
   } catch {
-    // not a did:peer:2 — fall through to the generic label
+    // not a did:peer:2 — no host to derive
   }
-  return "custom mediator";
+  return undefined;
+}
+
+/** A human name for a mediator DID: the known label, or its HTTP endpoint host. */
+export function mediatorLabel(did: string): string {
+  const known = MEDIATOR_CHOICES.find((choice) => choice.did === did);
+  if (known !== undefined) {
+    return known.label;
+  }
+  return didHost(did) ?? "custom mediator";
 }

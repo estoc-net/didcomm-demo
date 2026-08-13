@@ -1,6 +1,10 @@
 // Static-assets Worker: `npm run deploy` builds dist/ and ships it to
 // https://didcomm-demo.estoc.dev (custom domain on the estoc.dev zone,
 // same account as the mediator Worker).
+//
+// Deploying your own: change routes.pattern to your domain (or drop
+// "routes" to serve from workers.dev) and set VITE_MEDIATOR_DID at build
+// time so the app defaults to your mediator (see README).
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "didcomm-demo",

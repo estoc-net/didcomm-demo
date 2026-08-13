@@ -26,6 +26,10 @@ npm run dev
 Profiles default to `mediator.estoc.dev` ([didcomm-mediator] on Cloudflare
 Workers); the dropdown also offers a local mediator (`npm run dev` in the
 didcomm-mediator repo, minted with `MEDIATOR_PUBLIC_URL=http://localhost:8080`).
+Deploying your own copy? Set `VITE_MEDIATOR_DID=<your mediator's DID>` at
+build time (e.g. in `.env.production`) and it replaces the Estoc entries as
+the default choice — no source edits; the deploy domain itself lives in
+`wrangler.jsonc` (`routes.pattern`).
 For a one-browser demo, mint two profiles and introduce them to each other by
 copying DIDs from the left rail.
 
@@ -39,6 +43,7 @@ local-first deal stated plainly.
 npm run typecheck
 npm run e2e                     # two browser contexts against localhost:8080
 E2E_MEDIATOR=estoc npm run e2e  # same flow against mediator.estoc.dev
+E2E_MEDIATOR=<url>  npm run e2e # …or against your own mediator's URL
 ```
 
 The e2e script (playwright-core, system chromium) mints Alice and Bob in
