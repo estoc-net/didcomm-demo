@@ -24,6 +24,24 @@ const thread = computed(() =>
   props.profile.messages.filter((m) => m.contactDid === props.selectedContactDid)
 );
 
+// A displayName arriving over user-profile/1.0 is only ever a claim; the
+// head says so instead of presenting it as fact.
+const claimNote = computed(() => {
+  const c = contact.value;
+  if (c === null || c.claimedName === undefined) {
+    return null;
+  }
+  return c.claimedName === c.label
+    ? "a self-styled name"
+    : `calls themself “${c.claimedName}”`;
+});
+
+function profileLine(direction: "sent" | "received", name: string): string {
+  return direction === "sent"
+    ? `you introduced yourself as “${name}”`
+    : `introduced themself as “${name}”`;
+}
+
 const showAddForm = ref(false);
 const newLabel = ref("");
 const newDid = ref("");
@@ -80,6 +98,7 @@ watch(
   <main class="chat">
     <div class="chat-head">
       <h2>{{ contact?.label ?? "Conversations" }}</h2>
+      <span v-if="claimNote" class="claim-note">{{ claimNote }}</span>
       <span v-if="contact" class="eyebrow" :title="contact.did">{{ shortDid(contact.did) }}</span>
     </div>
 
@@ -121,10 +140,10 @@ watch(
         v-for="m in thread"
         :key="m.id"
         class="bubble"
-        :class="[m.direction, { selected: m.id === selectedMessageId }]"
+        :class="[m.direction, { selected: m.id === selectedMessageId, system: m.kind === 'profile' }]"
         @click="emit('selectMessage', m.id)"
       >
-        <div>{{ m.content }}</div>
+        <div>{{ m.kind === "profile" ? profileLine(m.direction, m.content) : m.content }}</div>
         <div class="meta">
           <span>{{ timeOf(m.time) }}</span>
           <span class="peel-hint">peel ({{ m.layers.length }} layers)</span>

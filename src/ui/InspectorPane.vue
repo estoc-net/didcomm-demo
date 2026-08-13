@@ -56,7 +56,10 @@ const hops = computed(() => {
         <button class="btn-quiet" @click="emit('close')">close</button>
       </div>
       <h2 v-if="message">
-        “{{ message.content.length > 40 ? message.content.slice(0, 40) + "…" : message.content }}”
+        <template v-if="message.kind === 'profile'">profile: “{{ message.content }}”</template>
+        <template v-else>
+          “{{ message.content.length > 40 ? message.content.slice(0, 40) + "…" : message.content }}”
+        </template>
       </h2>
     </div>
 

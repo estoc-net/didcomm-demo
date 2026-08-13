@@ -35,6 +35,11 @@ function persist(): void {
   });
 }
 
+/** The stand-in label an auto-created contact carries until it has a name. */
+function didPlaceholder(did: string): string {
+  return did.length <= 30 ? did : `${did.slice(0, 20)}…${did.slice(-6)}`;
+}
+
 function runtimeFor(id: string): ProfileRuntime {
   state.runtimes[id] ??= { status: { state: "idle" }, log: [] };
   return state.runtimes[id];
@@ -48,13 +53,21 @@ function startAgent(profile: ProfileData): void {
     },
     onMessage(message: ChatMessage) {
       // A first message from a stranger creates the contact, so it has a
-      // thread to land in; the label is the DID until the user renames it.
-      if (!profile.contacts.some((c) => c.did === message.contactDid)) {
+      // thread to land in; the label is the DID until something names it.
+      let contact = profile.contacts.find((c) => c.did === message.contactDid);
+      if (contact === undefined) {
         const did = message.contactDid;
-        profile.contacts.push({
-          did,
-          label: did.length <= 30 ? did : `${did.slice(0, 20)}…${did.slice(-6)}`,
-        });
+        profile.contacts.push({ did, label: didPlaceholder(did) });
+        contact = profile.contacts[profile.contacts.length - 1];
+      }
+      // An announced displayName is remembered as a claim. It only becomes
+      // the label while the label is still the DID placeholder — a name the
+      // user typed is never overwritten by what the contact calls themself.
+      if (message.kind === "profile" && message.content !== "") {
+        contact.claimedName = message.content;
+        if (contact.label === didPlaceholder(contact.did)) {
+          contact.label = message.content;
+        }
       }
     },
     onChange: persist,
@@ -90,6 +103,7 @@ export function createProfile(name: string, mediatorDid: string): ProfileData {
     secrets: [],
     contacts: [],
     messages: [],
+    profileSharedWith: [],
   };
   state.profiles.push(profile);
   const stored = state.profiles[state.profiles.length - 1];

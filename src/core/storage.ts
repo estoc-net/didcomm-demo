@@ -20,6 +20,10 @@ export function loadState(): PersistedState {
     if (raw !== null) {
       const parsed = JSON.parse(raw) as PersistedState;
       if (parsed.version === 1 && Array.isArray(parsed.profiles)) {
+        for (const profile of parsed.profiles) {
+          // predates the user-profile protocol
+          profile.profileSharedWith ??= [];
+        }
         return parsed;
       }
     }

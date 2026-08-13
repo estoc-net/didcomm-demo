@@ -118,6 +118,18 @@ try {
   await expectBubble(bob, "hello bob");
   ok("Bob received it live over the WebSocket");
 
+  // user-profile/1.0 rides ahead of the first message: Alice's intro names
+  // Bob's auto-created stranger contact, and send_back_yours makes Bob's
+  // agent introduce itself in return.
+  await bob.waitForSelector('.contact-chip:has-text("Alice")', { timeout: 15000 });
+  ok("Bob's stranger contact took Alice's claimed name");
+  await expectBubble(bob, "introduced themself as “Alice”");
+  await expectBubble(alice, "you introduced yourself as “Alice”");
+  await expectBubble(alice, "introduced themself as “Bob”");
+  ok("profiles exchanged both ways as thread asides");
+  await alice.waitForSelector(".claim-note", { timeout: 15000 });
+  ok("Alice's chat head marks Bob's name as self-styled");
+
   await addContact(bob, "Alice", aliceDid);
   await send(bob, "Alice", "hi alice, got it");
   await expectBubble(alice, "hi alice");
@@ -135,6 +147,14 @@ try {
     ok("received message peels into 4 layers (outer, delivery, authcrypt, plain)");
   } else {
     fail(`received message shows ${receivedLayers} layers, expected 4`);
+  }
+
+  // Profile messages are ordinary DIDComm mail: same onion, same peel.
+  const profileLayers = await peelLayers(bob, "introduced themself");
+  if (profileLayers === 4) {
+    ok("a received profile message peels into the same 4 layers");
+  } else {
+    fail(`profile message shows ${profileLayers} layers, expected 4`);
   }
 
   // Refresh survival: history and identity come back from localStorage.

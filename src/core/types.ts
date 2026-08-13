@@ -16,6 +16,8 @@ export interface EnvelopeLayer {
 export interface ChatMessage {
   /** the plaintext message id — also the dedup key */
   id: string;
+  /** absent means an ordinary chat message (pre-profile history) */
+  kind?: "chat" | "profile";
   direction: "sent" | "received";
   /** the counterparty's public DID */
   contactDid: string;
@@ -27,6 +29,12 @@ export interface ChatMessage {
 export interface Contact {
   did: string;
   label: string;
+  /**
+   * The displayName the contact announced over user-profile/1.0 — what they
+   * call themself, which is not what we necessarily call them, and never a
+   * verified claim.
+   */
+  claimedName?: string;
 }
 
 export interface ProfileData {
@@ -40,6 +48,8 @@ export interface ProfileData {
   secrets: Secret[];
   contacts: Contact[];
   messages: ChatMessage[];
+  /** DIDs our profile has been announced to, so each hears it exactly once */
+  profileSharedWith: string[];
 }
 
 export interface AgentKeys {

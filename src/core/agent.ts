@@ -42,6 +42,8 @@ const LIVE_DELIVERY_CHANGE =
   "https://didcomm.org/messagepickup/3.0/live-delivery-change";
 const FORWARD = "https://didcomm.org/routing/2.0/forward";
 const BASIC_MESSAGE = "https://didcomm.org/basicmessage/2.0/message";
+const PROFILE = "https://didcomm.org/user-profile/1.0/profile";
+const REQUEST_PROFILE = "https://didcomm.org/user-profile/1.0/request-profile";
 
 const PLAIN_TYP = "application/didcomm-plain+json";
 const ENCRYPTED_MIME = "application/didcomm-encrypted+json";
@@ -325,7 +327,16 @@ export class ProfileAgent {
         continue;
       }
 
-      if (inner.type !== BASIC_MESSAGE) {
+      if (inner.type === REQUEST_PROFILE) {
+        // Someone asked who we are: answer, without asking back.
+        if (inner.from !== undefined) {
+          this.events.onLog("profile requested; sending ours");
+          await this.sendProfile(inner.from, false);
+        }
+        continue;
+      }
+
+      if (inner.type !== BASIC_MESSAGE && inner.type !== PROFILE) {
         this.events.onLog(`received a ${inner.type ?? "typeless"} message; ignoring`);
         continue;
       }
@@ -368,11 +379,24 @@ export class ProfileAgent {
         }
       );
 
+      const body = inner.body as {
+        content?: unknown;
+        profile?: { displayName?: unknown };
+        send_back_yours?: unknown;
+      };
+      const content =
+        inner.type === PROFILE
+          ? typeof body.profile?.displayName === "string"
+            ? body.profile.displayName
+            : ""
+          : String(body.content ?? "");
+
       const message: ChatMessage = {
         id: inner.id,
+        kind: inner.type === PROFILE ? "profile" : "chat",
         direction: "received",
         contactDid: inner.from ?? "unknown",
-        content: String((inner.body as { content?: unknown }).content ?? ""),
+        content,
         // created_time is spec'd in epoch seconds; tolerate senders (and our
         // own pre-fix history) that used milliseconds.
         time:
@@ -386,6 +410,20 @@ export class ProfileAgent {
       this.profile.messages.push(message);
       this.events.onMessage(message);
       this.events.onChange();
+
+      if (
+        inner.type === PROFILE &&
+        body.send_back_yours === true &&
+        inner.from !== undefined
+      ) {
+        try {
+          await this.shareProfileIfNew(inner.from);
+        } catch (err) {
+          this.events.onLog(
+            `could not send our profile back: ${err instanceof Error ? err.message : err}`
+          );
+        }
+      }
     }
 
     try {
@@ -464,15 +502,15 @@ export class ProfileAgent {
   }
 
   /**
-   * Send a basicmessage, packing each envelope layer by hand so the inspector
-   * can show all of them: plaintext → authcrypt to the recipient → forward
-   * request → anoncrypt to their mediator.
+   * Pack a plaintext message for a contact layer by layer and POST it,
+   * capturing every layer for the inspector: plaintext → authcrypt to the
+   * recipient → (when they live behind a mediator) forward request →
+   * anoncrypt to their mediator.
    */
-  async sendBasicMessage(contactDid: string, text: string): Promise<ChatMessage> {
-    if (this.profile.did === null) {
-      throw new Error("no public DID yet — mediation has not completed");
-    }
-
+  private async deliverToContact(
+    plain: IMessage,
+    contactDid: string
+  ): Promise<EnvelopeLayer[]> {
     const contactDoc = await resolveDid(contactDid);
     if (contactDoc === null) {
       throw new Error("contact DID does not resolve");
@@ -482,13 +520,9 @@ export class ProfileAgent {
       throw new Error("contact DID names no service endpoint");
     }
 
-    const plain = plainMessage(BASIC_MESSAGE, this.profile.did, contactDid, {
-      content: text,
-    });
-
     const [innerPacked] = await new Message(plain).pack_encrypted(
       contactDid,
-      this.profile.did,
+      this.profile.did as string,
       null,
       didResolver,
       secretsResolverFor(this.allSecrets()),
@@ -585,8 +619,26 @@ export class ProfileAgent {
       throw new Error(`endpoint answered ${response.status}`);
     }
 
+    return layers;
+  }
+
+  async sendBasicMessage(contactDid: string, text: string): Promise<ChatMessage> {
+    if (this.profile.did === null) {
+      throw new Error("no public DID yet — mediation has not completed");
+    }
+
+    // The first message to anyone is preceded by an introduction: our
+    // user-profile/1.0 announcement, asking for theirs back.
+    await this.shareProfileIfNew(contactDid);
+
+    const plain = plainMessage(BASIC_MESSAGE, this.profile.did, contactDid, {
+      content: text,
+    });
+    const layers = await this.deliverToContact(plain, contactDid);
+
     const message: ChatMessage = {
       id: plain.id,
+      kind: "chat",
       direction: "sent",
       contactDid,
       content: text,
@@ -596,5 +648,48 @@ export class ProfileAgent {
     this.profile.messages.push(message);
     this.events.onChange();
     return message;
+  }
+
+  /** Announce our display name once per contact; later renames stay local. */
+  private async shareProfileIfNew(contactDid: string): Promise<void> {
+    if (this.profile.profileSharedWith.includes(contactDid)) {
+      return;
+    }
+    await this.sendProfile(contactDid, true);
+  }
+
+  /**
+   * Send a user-profile/1.0 `profile` message: the displayName the contact
+   * will see is whatever we claim it is — the demo's UI says as much on the
+   * receiving side.
+   */
+  private async sendProfile(
+    contactDid: string,
+    sendBackYours: boolean
+  ): Promise<void> {
+    if (this.profile.did === null) {
+      return;
+    }
+
+    const plain = plainMessage(PROFILE, this.profile.did, contactDid, {
+      profile: { displayName: this.profile.name },
+      send_back_yours: sendBackYours,
+    });
+    const layers = await this.deliverToContact(plain, contactDid);
+
+    if (!this.profile.profileSharedWith.includes(contactDid)) {
+      this.profile.profileSharedWith.push(contactDid);
+    }
+    const message: ChatMessage = {
+      id: plain.id,
+      kind: "profile",
+      direction: "sent",
+      contactDid,
+      content: this.profile.name,
+      time: Date.now(),
+      layers,
+    };
+    this.profile.messages.push(message);
+    this.events.onChange();
   }
 }

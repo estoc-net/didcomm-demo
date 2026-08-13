@@ -62,7 +62,11 @@ surviving a reload.
   didcomm-rust wrap the forward internally. Same wire bytes; every layer
   passes through our hands so every layer can be shown.
 - **Protocols**: coordinate-mediation/3.0, messagepickup/3.0 (drain on start,
-  live delivery over WebSocket, acks over HTTP), routing/2.0, basicmessage/2.0.
+  live delivery over WebSocket, acks over HTTP), routing/2.0, basicmessage/2.0,
+  user-profile/1.0 (displayName only — announced automatically before the
+  first message to a contact, answered when `send_back_yours` asks; the UI
+  shows a received name as what the contact *claims* to be called, and never
+  overwrites a label the user typed).
 - **did:peer lineage** (peer:2/4 codec, DIDDoc normalization) comes from
   [@estoc/did-peer], shared with [didcomm-mediator] and didcomm-http. Only the
   WASM shim stays local: the didcomm npm package's entry is webpack-shaped, so
