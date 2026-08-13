@@ -32,11 +32,15 @@ Deploying your own copy? The button above clones this repo into your GitHub
 account and deploys it to workers.dev; `npm run deploy` from a checkout does
 the same (both run the build first, via `build.command` in `wrangler.jsonc`).
 Set `VITE_MEDIATOR_DID=<your mediator's DID>` at build time and it replaces
-the Estoc entries as the default choice — no source edits: locally via
-`.env.production`; on a button deploy, add it afterwards under the Worker's
-**Settings → Build → Build variables**, then push any commit to trigger a
-build — the button's initial seed build cannot be retried. Until then the
-deployed copy defaults to `mediator.estoc.dev`. Custom domains attach in the
+the Estoc entries as the default choice — no source edits. Locally, put it in
+`.env.production`. On a button deploy, prefix the **deploy command** on the
+setup page — `VITE_MEDIATOR_DID=… npm run deploy` — and your first deploy
+already defaults to your mediator. It must ride the deploy command, not the
+build command: deploying runs the final build (`build.command` in
+`wrangler.jsonc`), which would silently overwrite a value given only to the
+build step. To change it later, add the variable under the Worker's
+**Settings → Build → Build variables** and push any commit — the button's
+initial seed build cannot be retried. Custom domains attach in the
 Cloudflare dashboard, not in `wrangler.jsonc`, so the config deploys on any
 account unchanged.
 For a one-browser demo, mint two profiles and introduce them to each other by
