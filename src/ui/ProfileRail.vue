@@ -123,7 +123,7 @@ function removeProfile(id: string, name: string) {
       <form v-if="showMintForm" class="rail-form" style="margin-top: 10px" @submit.prevent="mint">
         <input v-model="newName" class="field" placeholder="name, e.g. Alice" />
         <select v-model="newMediator" class="field">
-          <option v-for="choice in MEDIATOR_CHOICES" :key="choice.did" :value="choice.did">
+          <option v-for="choice in MEDIATOR_CHOICES" :key="choice.value" :value="choice.value">
             {{ choice.label }}
           </option>
           <option :value="CUSTOM">paste an invitation…</option>

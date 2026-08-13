@@ -8,10 +8,9 @@
  *
  * The mediator both profiles use is whatever the demo's mediator dropdown
  * offers — the script picks the localhost entry unless E2E_MEDIATOR=estoc
- * (production under its did:peer:2 name), E2E_MEDIATOR=web (production
- * under did:web:mediator.estoc.dev), or E2E_MEDIATOR=<url> (any other
- * value is a mediator's URL — the entry a VITE_MEDIATOR_DID build labels
- * with that URL's host).
+ * (or its old alias `web`: production, did:web:mediator.estoc.dev) or
+ * E2E_MEDIATOR=<url> (any other value is a mediator's URL — the entry a
+ * VITE_MEDIATOR_DID build labels with that URL's host).
  */
 import { chromium } from "playwright-core";
 
@@ -19,11 +18,9 @@ const DEMO_URL = process.argv[2] ?? "http://localhost:5199";
 const E2E_MEDIATOR = process.env.E2E_MEDIATOR;
 let MEDIATOR_LABEL = "localhost:8080";
 let MEDIATOR_URL = "http://localhost:8080";
-if (E2E_MEDIATOR === "estoc") {
+if (E2E_MEDIATOR === "estoc" || E2E_MEDIATOR === "web") {
+  // Production has exactly one name now: did:web:mediator.estoc.dev.
   MEDIATOR_LABEL = "mediator.estoc.dev";
-  MEDIATOR_URL = "https://mediator.estoc.dev";
-} else if (E2E_MEDIATOR === "web") {
-  MEDIATOR_LABEL = "mediator.estoc.dev (did:web)";
   MEDIATOR_URL = "https://mediator.estoc.dev";
 } else if (E2E_MEDIATOR !== undefined && E2E_MEDIATOR !== "local") {
   MEDIATOR_URL = E2E_MEDIATOR;

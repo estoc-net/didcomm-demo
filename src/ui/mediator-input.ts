@@ -11,20 +11,23 @@ export const CUSTOM = "custom";
  * an OOB invitation URL, a bare mediator URL, or a DID.
  */
 export function useMediatorInput() {
-  const choice = ref<string>(MEDIATOR_CHOICES[0].did);
+  const choice = ref<string>(MEDIATOR_CHOICES[0].value);
   const pasted = ref("");
   const resolving = ref(false);
   const error = ref<string | null>(null);
 
   /** The chosen mediator's DID, or null after leaving the reason in `error`. */
   async function resolveChoice(): Promise<string | null> {
-    if (choice.value !== CUSTOM) {
-      return choice.value;
+    // A dropdown entry may itself be a URL (the local mediator mints its own
+    // keys, so its DID can only be asked for) — resolve it like a pasted one.
+    const input = choice.value === CUSTOM ? pasted.value : choice.value;
+    if (input.startsWith("did:")) {
+      return input;
     }
     error.value = null;
     resolving.value = true;
     try {
-      return await resolveMediatorInput(pasted.value);
+      return await resolveMediatorInput(input);
     } catch (err) {
       error.value = err instanceof Error ? err.message : String(err);
       return null;

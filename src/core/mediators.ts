@@ -1,42 +1,37 @@
 import { base64urlToUtf8, resolvePeer2, toDIDCommDIDDoc } from "@estoc/did-peer";
 
 /**
- * Known mediators. The default is Estoc's own mediator-ts on Cloudflare
- * Workers; the local one is `npm run dev` in the mediator-ts repo, whose
- * identity is minted from MEDIATOR_PUBLIC_URL=http://localhost:8080.
+ * Known mediators. The default is Estoc's own mediator on Cloudflare
+ * Workers under its did:web name — a mediator's DID is a function of its
+ * keys and URL, and did:web is the name that stays put. The local entry is
+ * `npm run dev` in the mediator repo: every checkout mints its own keys,
+ * so there is no DID to hardcode — the entry is the URL, probed for its
+ * DID at selection time.
  *
  * A fork points the demo at its own mediator without touching this file:
  * VITE_MEDIATOR_DID at build time (e.g. in .env.production) replaces the
- * Estoc entries as the default dropdown choice, labelled by the host its
+ * Estoc entry as the default dropdown choice, labelled by the host its
  * DID names.
  */
 
-export const ESTOC_MEDIATOR =
-  "did:peer:2.Ez6LSfL95Zj6FJmsiTPSqc4NkMWWmZbSUjJsDzjg6Lh6XXpVj.Vz6Mkr4MAov1H2MtYYqN1eiFnTd3wXKSjP5gFNtmnqHmXAFQf.SeyJ0IjoiZG0iLCJzIjp7InVyaSI6Imh0dHBzOi8vbWVkaWF0b3IuZXN0b2MuZGV2IiwiYSI6WyJkaWRjb21tL3YyIl19fQ.SeyJ0IjoiZG0iLCJzIjp7InVyaSI6IndzczovL21lZGlhdG9yLmVzdG9jLmRldiIsImEiOlsiZGlkY29tbS92MiJdfX0";
-
-/**
- * The same mediator (same keys, same endpoints) under its did:web name —
- * resolved from https://mediator.estoc.dev/.well-known/did.json instead of
- * decoded from the DID itself.
- */
 export const ESTOC_MEDIATOR_WEB = "did:web:mediator.estoc.dev";
-
-export const LOCAL_MEDIATOR =
-  "did:peer:2.Ez6LSjXVLw9R8NLHtZHnV6bkKtXk4ZFzq1HyMxLuHrnd6xVDr.Vz6MkhwrTT4ctMXvQGtPiLr61qwa9mqDaLH7Ghebi62rbaQYQ.SeyJ0IjoiZG0iLCJzIjp7InVyaSI6Imh0dHA6Ly9sb2NhbGhvc3Q6ODA4MCIsImEiOlsiZGlkY29tbS92MiJdfX0.SeyJ0IjoiZG0iLCJzIjp7InVyaSI6IndzOi8vbG9jYWxob3N0OjgwODAiLCJhIjpbImRpZGNvbW0vdjIiXX19";
 
 const CUSTOM_MEDIATOR = import.meta.env.VITE_MEDIATOR_DID?.trim();
 
-const LOCAL_CHOICE = { label: "localhost:8080", did: LOCAL_MEDIATOR };
+/** Each entry's value is a DID, or a URL to probe for one when chosen. */
+const LOCAL_CHOICE = { label: "localhost:8080", value: "http://localhost:8080" };
 
 export const MEDIATOR_CHOICES =
   CUSTOM_MEDIATOR !== undefined && CUSTOM_MEDIATOR !== ""
     ? [
-        { label: didHost(CUSTOM_MEDIATOR) ?? "custom mediator", did: CUSTOM_MEDIATOR },
+        {
+          label: didHost(CUSTOM_MEDIATOR) ?? "custom mediator",
+          value: CUSTOM_MEDIATOR,
+        },
         LOCAL_CHOICE,
       ]
     : [
-        { label: "mediator.estoc.dev", did: ESTOC_MEDIATOR },
-        { label: "mediator.estoc.dev (did:web)", did: ESTOC_MEDIATOR_WEB },
+        { label: "mediator.estoc.dev", value: ESTOC_MEDIATOR_WEB },
         LOCAL_CHOICE,
       ];
 
@@ -122,7 +117,7 @@ function didHost(did: string): string | undefined {
 
 /** A human name for a mediator DID: the known label, or its HTTP endpoint host. */
 export function mediatorLabel(did: string): string {
-  const known = MEDIATOR_CHOICES.find((choice) => choice.did === did);
+  const known = MEDIATOR_CHOICES.find((choice) => choice.value === did);
   if (known !== undefined) {
     return known.label;
   }

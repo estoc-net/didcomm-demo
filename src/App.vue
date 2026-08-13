@@ -80,7 +80,7 @@ async function mintFirst() {
       <form @submit.prevent="mintFirst">
         <input v-model="firstName" class="field" placeholder="a name, e.g. Alice" />
         <select v-model="firstMediator" class="field">
-          <option v-for="choice in MEDIATOR_CHOICES" :key="choice.did" :value="choice.did">
+          <option v-for="choice in MEDIATOR_CHOICES" :key="choice.value" :value="choice.value">
             via {{ choice.label }}
           </option>
           <option :value="CUSTOM">via a pasted invitation…</option>
