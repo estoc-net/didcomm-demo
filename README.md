@@ -34,8 +34,9 @@ the same (both run the build first, via `build.command` in `wrangler.jsonc`).
 Set `VITE_MEDIATOR_DID=<your mediator's DID>` at build time and it replaces
 the Estoc entries as the default choice — no source edits: locally via
 `.env.production`; on a button deploy, add it afterwards under the Worker's
-**Settings → Build → Build variables** and retry the build (until then the
-deployed copy defaults to `mediator.estoc.dev`). Custom domains attach in the
+**Settings → Build → Build variables**, then push any commit to trigger a
+build — the button's initial seed build cannot be retried. Until then the
+deployed copy defaults to `mediator.estoc.dev`. Custom domains attach in the
 Cloudflare dashboard, not in `wrangler.jsonc`, so the config deploys on any
 account unchanged.
 For a one-browser demo, mint two profiles and introduce them to each other by
