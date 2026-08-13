@@ -1,5 +1,7 @@
 # Estoc DIDComm Demo
 
+[![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/estoc-net/didcomm-demo)
+
 A see-through DIDComm v2 messenger. On the surface it is a small chat app:
 mint an identity in the browser, request mediation, exchange DIDs, talk. The
 point is what every other messenger hides — each message keeps its envelopes,
@@ -26,10 +28,16 @@ npm run dev
 Profiles default to `mediator.estoc.dev` ([didcomm-mediator] on Cloudflare
 Workers); the dropdown also offers a local mediator (`npm run dev` in the
 didcomm-mediator repo, minted with `MEDIATOR_PUBLIC_URL=http://localhost:8080`).
-Deploying your own copy? Set `VITE_MEDIATOR_DID=<your mediator's DID>` at
-build time (e.g. in `.env.production`) and it replaces the Estoc entries as
-the default choice — no source edits; the deploy domain itself lives in
-`wrangler.jsonc` (`routes.pattern`).
+Deploying your own copy? The button above clones this repo into your GitHub
+account and deploys it to workers.dev; `npm run deploy` from a checkout does
+the same (both run the build first, via `build.command` in `wrangler.jsonc`).
+Set `VITE_MEDIATOR_DID=<your mediator's DID>` at build time and it replaces
+the Estoc entries as the default choice — no source edits: locally via
+`.env.production`; on a button deploy, add it afterwards under the Worker's
+**Settings → Build → Build variables** and retry the build (until then the
+deployed copy defaults to `mediator.estoc.dev`). Custom domains attach in the
+Cloudflare dashboard, not in `wrangler.jsonc`, so the config deploys on any
+account unchanged.
 For a one-browser demo, mint two profiles and introduce them to each other by
 copying DIDs from the left rail.
 

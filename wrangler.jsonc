@@ -1,22 +1,19 @@
-// Static-assets Worker: `npm run deploy` builds dist/ and ships it to
-// https://didcomm-demo.estoc.dev (custom domain on the estoc.dev zone,
-// same account as the mediator Worker).
-//
-// Deploying your own: change routes.pattern to your domain (or drop
-// "routes" to serve from workers.dev) and set VITE_MEDIATOR_DID at build
-// time so the app defaults to your mediator (see README).
+// Static-assets Worker: `wrangler deploy` runs the vite build (build.command
+// below) and ships dist/. Deployable on any account as-is — the "Deploy to
+// Cloudflare" button in the README serves it from workers.dev. Attach custom
+// domains in the dashboard rather than here, so this file stays deployable
+// anywhere; that is how https://didcomm-demo.estoc.dev is bound. Set
+// VITE_MEDIATOR_DID at build time so the app defaults to your mediator
+// (see README).
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "didcomm-demo",
   "compatibility_date": "2026-08-12",
+  "build": {
+    "command": "npm run build"
+  },
   "assets": {
     "directory": "./dist",
     "not_found_handling": "single-page-application"
-  },
-  "routes": [
-    {
-      "pattern": "didcomm-demo.estoc.dev",
-      "custom_domain": true
-    }
-  ]
+  }
 }

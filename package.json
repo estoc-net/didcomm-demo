@@ -11,7 +11,7 @@
     "preview": "vite preview",
     "typecheck": "vue-tsc -b",
     "e2e": "node scripts/e2e.mjs",
-    "deploy": "npm run build && wrangler deploy"
+    "deploy": "wrangler deploy"
   },
   "dependencies": {
     "@estoc/did-peer": "^0.1.0",
