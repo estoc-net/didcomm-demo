@@ -20,6 +20,8 @@ export function useMediatorInput() {
   async function resolveChoice(): Promise<string | null> {
     // A dropdown entry may itself be a URL (the local mediator mints its own
     // keys, so its DID can only be asked for) — resolve it like a pasted one.
+    // An entry may also prefer one of the probed mediator's non-primary DIDs.
+    const selected = MEDIATOR_CHOICES.find((c) => c.value === choice.value);
     const input = choice.value === CUSTOM ? pasted.value : choice.value;
     if (input.startsWith("did:")) {
       return input;
@@ -27,7 +29,7 @@ export function useMediatorInput() {
     error.value = null;
     resolving.value = true;
     try {
-      return await resolveMediatorInput(input);
+      return await resolveMediatorInput(input, selected?.prefer);
     } catch (err) {
       error.value = err instanceof Error ? err.message : String(err);
       return null;

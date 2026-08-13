@@ -15,13 +15,41 @@ import { base64urlToUtf8, resolvePeer2, toDIDCommDIDDoc } from "@estoc/did-peer"
  */
 
 export const ESTOC_MEDIATOR_WEB = "did:web:mediator.estoc.dev";
+export const ESTOC_MEDIATOR_URL = "https://mediator.estoc.dev";
 
 const CUSTOM_MEDIATOR = import.meta.env.VITE_MEDIATOR_DID?.trim();
 
-/** Each entry's value is a DID, or a URL to probe for one when chosen. */
-const LOCAL_CHOICE = { label: "localhost:8080", value: "http://localhost:8080" };
+export interface MediatorChoice {
+  label: string;
+  /** A DID, or a URL to probe for one when chosen. */
+  value: string;
+  /**
+   * Take the probed mediator's DID with this prefix instead of its primary.
+   * A mediator's peer DIDs are functions of its live keys, so they can only
+   * be asked for, never hardcoded — the entry names the method, the probe
+   * supplies the name.
+   */
+  prefer?: string;
+}
 
-export const MEDIATOR_CHOICES =
+const LOCAL_CHOICE: MediatorChoice = {
+  label: "localhost:8080",
+  value: "http://localhost:8080",
+};
+
+/**
+ * The did:peer:2 alias of the same production mediator. Some correspondents
+ * (demo.didcomm.org among them) mis-resolve a did:web routing DID whose
+ * document carries JWK material; a profile minted on the peer:2 name routes
+ * around that, since did:peer:2 inlines multibase keys and plain URLs.
+ */
+const ESTOC_PEER2_CHOICE: MediatorChoice = {
+  label: "mediator.estoc.dev (did:peer:2)",
+  value: ESTOC_MEDIATOR_URL,
+  prefer: "did:peer:2",
+};
+
+export const MEDIATOR_CHOICES: MediatorChoice[] =
   CUSTOM_MEDIATOR !== undefined && CUSTOM_MEDIATOR !== ""
     ? [
         {
@@ -32,6 +60,7 @@ export const MEDIATOR_CHOICES =
       ]
     : [
         { label: "mediator.estoc.dev", value: ESTOC_MEDIATOR_WEB },
+        ESTOC_PEER2_CHOICE,
         LOCAL_CHOICE,
       ];
 
@@ -46,7 +75,10 @@ export const OOB_INVITATION =
  * mediator URL, probed with one GET for its JSON description — the only
  * form that has to trust what the server answers today.
  */
-export async function resolveMediatorInput(input: string): Promise<string> {
+export async function resolveMediatorInput(
+  input: string,
+  prefer?: string
+): Promise<string> {
   const trimmed = input.trim();
   if (trimmed === "") {
     throw new Error("paste an invitation URL, a mediator URL, or a DID");
@@ -79,12 +111,22 @@ export async function resolveMediatorInput(input: string): Promise<string> {
     return invitation.from;
   }
 
-  let body: { did?: unknown } | null;
+  let body: { did?: unknown; dids?: unknown } | null;
   try {
     const res = await fetch(url, { headers: { accept: "application/json" } });
-    body = (await res.json()) as { did?: unknown };
+    body = (await res.json()) as { did?: unknown; dids?: unknown };
   } catch {
     throw new Error(`could not get a mediator description from ${url.host}`);
+  }
+  if (prefer !== undefined) {
+    const dids = Array.isArray(body?.dids) ? body.dids : [];
+    const match = dids.find(
+      (did): did is string => typeof did === "string" && did.startsWith(prefer)
+    );
+    if (match === undefined) {
+      throw new Error(`${url.host} does not answer as a ${prefer} DID`);
+    }
+    return match;
   }
   if (typeof body?.did !== "string" || !body.did.startsWith("did:")) {
     throw new Error(`${url.host} did not answer with a mediator DID`);

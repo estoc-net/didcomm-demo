@@ -19,8 +19,12 @@ const E2E_MEDIATOR = process.env.E2E_MEDIATOR;
 let MEDIATOR_LABEL = "localhost:8080";
 let MEDIATOR_URL = "http://localhost:8080";
 if (E2E_MEDIATOR === "estoc" || E2E_MEDIATOR === "web") {
-  // Production has exactly one name now: did:web:mediator.estoc.dev.
+  // Production's primary name: did:web:mediator.estoc.dev.
   MEDIATOR_LABEL = "mediator.estoc.dev";
+  MEDIATOR_URL = "https://mediator.estoc.dev";
+} else if (E2E_MEDIATOR === "estoc-peer2") {
+  // Production's did:peer:2 alias — the dropdown entry probes GET / for it.
+  MEDIATOR_LABEL = "mediator.estoc.dev (did:peer:2)";
   MEDIATOR_URL = "https://mediator.estoc.dev";
 } else if (E2E_MEDIATOR !== undefined && E2E_MEDIATOR !== "local") {
   MEDIATOR_URL = E2E_MEDIATOR;
