@@ -59,12 +59,14 @@ async function mintFirst() {
   if (mediatorDid === null) {
     return;
   }
-  createProfile(name, mediatorDid);
+  void createProfile(name, mediatorDid);
 }
 </script>
 
 <template>
-  <div v-if="state.profiles.length === 0" class="hollow" style="height: 100%">
+  <div v-if="!state.loaded" class="hollow" style="height: 100%"></div>
+
+  <div v-else-if="state.profiles.length === 0" class="hollow" style="height: 100%">
     <div class="hollow-card">
       <div class="eyebrow">Estoc Research — DIDComm demo</div>
       <h1>A messenger you can <em>see through</em></h1>

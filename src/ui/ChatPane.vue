@@ -54,7 +54,7 @@ function add() {
     addError.value = "That is not a DID — it should start with did:";
     return;
   }
-  addContact(props.profile.id, did, label);
+  void addContact(props.profile.id, did, label);
   emit("selectContact", did);
   newLabel.value = "";
   newDid.value = "";

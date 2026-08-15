@@ -42,7 +42,7 @@ async function mint() {
   if (mediatorDid === null) {
     return;
   }
-  createProfile(name, mediatorDid);
+  void createProfile(name, mediatorDid);
   newName.value = "";
   newInvitation.value = "";
   showMintForm.value = false;
@@ -87,7 +87,7 @@ function statusText(status: AgentStatus | null): string {
 
 function removeProfile(id: string, name: string) {
   if (confirm(`Delete the profile "${name}"? Its keys and messages are gone for good.`)) {
-    deleteProfile(id);
+    void deleteProfile(id);
   }
 }
 </script>

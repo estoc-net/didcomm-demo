@@ -1,127 +1,194 @@
 import { reactive } from "vue";
+import { createSeedKeystore, unlockSeedKeystore } from "@estoc/keystore";
+import {
+  Agent,
+  Vault,
+  chatView,
+  currentDid,
+  type ContactRecord,
+} from "@estoc/agent-core";
 
-import { ProfileAgent } from "./agent.js";
-import { mintIdentity } from "./identity.js";
-import { loadState, saveState } from "./storage.js";
-import type { AgentStatus, ChatMessage, ProfileData } from "./types.js";
+import { Message } from "../didcomm/wasm.js";
+import {
+  backendFor,
+  deleteVault,
+  listVaultIds,
+  loadActiveId,
+  saveActiveId,
+} from "./storage.js";
+import type { AgentStatus, ChatMessage, Contact, ProfileData } from "./types.js";
 
 /**
- * The one store: persisted profiles wrapped in Vue reactivity, plus the
- * per-profile runtime (agent instance, connection status, activity log) that
- * never touches localStorage. Agents receive the reactive proxies, so their
- * mutations both render and persist.
+ * The one store: profile views wrapped in Vue reactivity, plus the
+ * per-profile runtime (agent instance, connection status, activity log).
+ * Each profile is a vault in OPFS; the agent writes there and reports back
+ * through events, which update the views — so the UI renders what the
+ * vault holds, never the other way round.
+ *
+ * Demo profiles seal their seed under an empty passphrase: exactly as
+ * private as the raw keys in localStorage were, and one code path with the
+ * real thing, which asks for a passphrase once and keeps the unlocked seed.
  */
+
+const DEMO_PASSPHRASE = "";
 
 export interface ProfileRuntime {
   status: AgentStatus;
   log: string[];
 }
 
-const persisted = loadState();
-
 export const state = reactive({
-  profiles: persisted.profiles,
-  activeProfileId: persisted.activeProfileId,
+  /** false until the vaults on disk have been listed */
+  loaded: false,
+  profiles: [] as ProfileData[],
+  activeProfileId: loadActiveId(),
   runtimes: {} as Record<string, ProfileRuntime>,
 });
 
-const agents = new Map<string, ProfileAgent>();
-
-function persist(): void {
-  saveState({
-    version: 1,
-    profiles: state.profiles,
-    activeProfileId: state.activeProfileId,
-  });
-}
-
-/** The stand-in label an auto-created contact carries until it has a name. */
-function didPlaceholder(did: string): string {
-  return did.length <= 30 ? did : `${did.slice(0, 20)}…${did.slice(-6)}`;
-}
+const agents = new Map<string, Agent>();
 
 function runtimeFor(id: string): ProfileRuntime {
   state.runtimes[id] ??= { status: { state: "idle" }, log: [] };
   return state.runtimes[id];
 }
 
-function startAgent(profile: ProfileData): void {
-  const runtime = runtimeFor(profile.id);
-  const agent = new ProfileAgent(profile, {
-    onStatus(status) {
-      runtime.status = status;
-    },
-    onMessage(message: ChatMessage) {
-      // A first message from a stranger creates the contact, so it has a
-      // thread to land in; the label is the DID until something names it.
-      let contact = profile.contacts.find((c) => c.did === message.contactDid);
-      if (contact === undefined) {
-        const did = message.contactDid;
-        profile.contacts.push({ did, label: didPlaceholder(did) });
-        contact = profile.contacts[profile.contacts.length - 1];
-      }
-      // An announced displayName is remembered as a claim. It only becomes
-      // the label while the label is still the DID placeholder — a name the
-      // user typed is never overwritten by what the contact calls themself.
-      if (message.kind === "profile" && message.content !== "") {
-        contact.claimedName = message.content;
-        if (contact.label === didPlaceholder(contact.did)) {
-          contact.label = message.content;
-        }
-      }
-    },
-    onChange: persist,
-    onLog(line) {
-      runtime.log.push(`${new Date().toLocaleTimeString()}  ${line}`);
-      if (runtime.log.length > 200) {
-        runtime.log.shift();
-      }
-    },
-  });
-  agents.set(profile.id, agent);
-  void agent.start();
+function contactView(record: ContactRecord): Contact {
+  return {
+    cid: record.cid,
+    did: currentDid(record),
+    label: record.name,
+    ...(record.claimedName === undefined ? {} : { claimedName: record.claimedName }),
+  };
 }
 
-export function startAllAgents(): void {
-  for (const profile of state.profiles) {
-    if (!agents.has(profile.id)) {
-      startAgent(profile);
-    }
+function upsertContact(profile: ProfileData, record: ContactRecord): void {
+  const view = contactView(record);
+  const index = profile.contacts.findIndex((c) => c.cid === record.cid);
+  if (index === -1) {
+    profile.contacts.push(view);
+  } else {
+    profile.contacts[index] = view;
   }
 }
 
-export function createProfile(name: string, mediatorDid: string): ProfileData {
+async function attachAgent(profile: ProfileData, vault: Vault, seedKey: CryptoKey): Promise<void> {
+  const runtime = runtimeFor(profile.id);
+  const agent = new Agent({
+    vault,
+    seedKey,
+    didcomm: { Message },
+    events: {
+      onStatus(status) {
+        runtime.status = status;
+        profile.did = agent.did;
+      },
+      onMessage(_record, view: ChatMessage) {
+        profile.messages.push(view);
+      },
+      onContact(record) {
+        upsertContact(profile, record);
+      },
+      onLog(line) {
+        runtime.log.push(`${new Date().toLocaleTimeString()}  ${line}`);
+        if (runtime.log.length > 200) {
+          runtime.log.shift();
+        }
+      },
+    },
+  });
+  agents.set(profile.id, agent);
+  await agent.start();
+}
+
+/** Open one vault on disk into a profile view and start its agent. */
+async function loadProfile(id: string): Promise<ProfileData | null> {
+  const backend = await backendFor(id);
+  if (!(await Vault.exists(backend))) {
+    return null;
+  }
+  const vault = await Vault.open(backend);
+  const seedKey = await unlockSeedKeystore(vault.keystore, DEMO_PASSPHRASE);
+  const messages: ChatMessage[] = [];
+  for (const record of await vault.messages.read()) {
+    const view = chatView(record);
+    if (view !== null) {
+      messages.push(view);
+    }
+  }
   const profile: ProfileData = {
-    id: crypto.randomUUID(),
-    name,
-    mediatorDid,
-    // No service: this DID's mail is picked up from the mediator, never
-    // pushed to an endpoint. (`didcomm:transport/queue` was an Aries-era
-    // convention that never made it into the DIDComm v2 spec.)
-    didForMediator: mintIdentity(null),
-    did: null,
-    secrets: [],
-    contacts: [],
-    messages: [],
-    profileSharedWith: [],
+    id,
+    name: vault.config.label,
+    mediatorDid: vault.config.mediation?.mediatorDid ?? "",
+    did: vault.config.mediation?.public?.did ?? null,
+    contacts: (await vault.contacts.all()).map(contactView),
+    messages,
   };
   state.profiles.push(profile);
   const stored = state.profiles[state.profiles.length - 1];
-  state.activeProfileId = profile.id;
-  persist();
-  startAgent(stored);
+  void attachAgent(stored, vault, seedKey);
   return stored;
 }
 
-export function deleteProfile(id: string): void {
+/** List the vaults in OPFS, load each, and bring its agent up. */
+export async function loadProfiles(): Promise<void> {
+  try {
+    for (const id of await listVaultIds()) {
+      if (!state.profiles.some((p) => p.id === id)) {
+        try {
+          await loadProfile(id);
+        } catch (err) {
+          runtimeFor(id).status = {
+            state: "error",
+            detail: `could not open vault: ${err instanceof Error ? err.message : err}`,
+          };
+        }
+      }
+    }
+    if (!state.profiles.some((p) => p.id === state.activeProfileId)) {
+      state.activeProfileId = state.profiles[0]?.id ?? null;
+      saveActiveId(state.activeProfileId);
+    }
+  } finally {
+    state.loaded = true;
+  }
+}
+
+export async function createProfile(name: string, mediatorDid: string): Promise<ProfileData> {
+  const id = crypto.randomUUID();
+  const backend = await backendFor(id);
+  const { doc, seedKey } = await createSeedKeystore(DEMO_PASSPHRASE);
+  const vault = await Vault.create(backend, {
+    label: name,
+    keystore: doc,
+    seedKey,
+    mediatorDid,
+  });
+  const profile: ProfileData = {
+    id,
+    name,
+    mediatorDid,
+    did: null,
+    contacts: [],
+    messages: [],
+  };
+  state.profiles.push(profile);
+  const stored = state.profiles[state.profiles.length - 1];
+  state.activeProfileId = id;
+  saveActiveId(id);
+  void attachAgent(stored, vault, seedKey);
+  return stored;
+}
+
+export async function deleteProfile(id: string): Promise<void> {
   agents.get(id)?.destroy();
   agents.delete(id);
   state.profiles = state.profiles.filter((profile) => profile.id !== id);
   delete state.runtimes[id];
   if (state.activeProfileId === id) {
     state.activeProfileId = state.profiles[0]?.id ?? null;
+    saveActiveId(state.activeProfileId);
   }
-  persist();
+  await deleteVault(id);
 }
 
 export function activeProfile(): ProfileData | null {
@@ -130,32 +197,32 @@ export function activeProfile(): ProfileData | null {
 
 export function selectProfile(id: string): void {
   state.activeProfileId = id;
-  persist();
+  saveActiveId(id);
 }
 
-export function addContact(profileId: string, did: string, label: string): void {
+export async function addContact(profileId: string, did: string, label: string): Promise<void> {
+  const agent = agents.get(profileId);
   const profile = state.profiles.find((p) => p.id === profileId);
-  if (profile === undefined) {
+  if (agent === undefined || profile === undefined) {
     return;
   }
   // Adding a DID that already arrived as a stranger renames the auto-created
-  // contact instead of duplicating it.
-  const existing = profile.contacts.find((c) => c.did === did);
-  if (existing !== undefined) {
-    existing.label = label;
-  } else {
-    profile.contacts.push({ did, label });
-  }
-  persist();
+  // contact instead of duplicating it — the agent handles that.
+  upsertContact(profile, await agent.addContact(did, label));
 }
 
-export function removeContact(profileId: string, did: string): void {
+export async function removeContact(profileId: string, did: string): Promise<void> {
+  const agent = agents.get(profileId);
   const profile = state.profiles.find((p) => p.id === profileId);
-  if (profile === undefined) {
+  if (agent === undefined || profile === undefined) {
     return;
   }
-  profile.contacts = profile.contacts.filter((c) => c.did !== did);
-  persist();
+  const contact = profile.contacts.find((c) => c.did === did);
+  if (contact === undefined) {
+    return;
+  }
+  await agent.removeContact(contact.cid);
+  profile.contacts = profile.contacts.filter((c) => c.cid !== contact.cid);
 }
 
 export async function sendMessage(

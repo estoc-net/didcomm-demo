@@ -32,9 +32,12 @@ didcomm-mediator repo, minted with `MEDIATOR_PUBLIC_URL=http://localhost:8080`).
 For a one-browser demo, mint two profiles and introduce them to each other by
 copying DIDs from the left rail.
 
-Keys, contacts, and message history live in `localStorage` only. Clearing
-site data destroys the identity — there is nothing to recover, which is the
-local-first deal stated plainly.
+Keys, contacts, and message history live in this browser only: each profile
+is an `.estoc` vault (see [@estoc/agent-core]) inside the Origin Private File
+System, its seed sealed under an empty passphrase. Clearing site data destroys
+the identity — there is nothing to recover, which is the local-first deal
+stated plainly. (Profiles minted by earlier versions lived in `localStorage`;
+they are left in place but no longer shown.)
 
 ## Deploy your own
 
@@ -75,10 +78,16 @@ surviving a reload.
 
 ## How it hangs together
 
-- **Identities** are Multikey `did:peer:4` long forms (Ed25519 + X25519 via
-  @noble/curves). Each profile holds two: one facing the mediator (service
-  `didcomm:transport/queue`) and a public one whose service endpoint *is* the
-  mediator's DID — the shapes pinned by didcomm-mediator's `demo-interop` test.
+- **The agent is [@estoc/agent-core]**: mediation, pickup, live delivery,
+  the hand-layered packing, user-profile introductions, and the `.estoc`
+  vault format (config, seed keystore, contacts, append-only message log)
+  over an OPFS backend. This repo is the UI on top: `src/core/store.ts`
+  mirrors each vault into Vue reactive views and forwards agent events.
+- **Identities** come from one seed per profile ([@estoc/keystore] v2):
+  the anchor `did:key`, a Multikey `did:peer:4` facing the mediator (no
+  service — mail is picked up, never pushed), and a public `did:peer:4`
+  whose service endpoint *is* the mediator's routing DID — the shapes pinned
+  by didcomm-mediator's `demo-interop` test.
 - **Packing is done by hand in two steps** (inner authcrypt, then an explicit
   `routing/2.0/forward` sealed anoncrypt to the mediator) instead of letting
   didcomm-rust wrap the forward internally. Same wire bytes; every layer
@@ -93,12 +102,13 @@ surviving a reload.
   [@estoc/did-peer], shared with [didcomm-mediator] and didcomm-http. Only the
   WASM shim stays local: the didcomm npm package's entry is webpack-shaped, so
   `src/didcomm/wasm.ts` instantiates it manually — the same shim
-  didcomm-mediator uses on workerd, made async.
+  didcomm-mediator uses on workerd, made async — and hands `Message` to the
+  agent.
 
 ## Status
 
-A demonstration, not a product: identities live in localStorage and nothing
-here has received an independent security audit. Use it to see how DIDComm
+A demonstration, not a product: keys live in the browser under an empty
+passphrase and nothing here has received an independent security audit. Use it to see how DIDComm
 works, not to carry real secrets.
 
 ## License
@@ -106,4 +116,6 @@ works, not to carry real secrets.
 Apache-2.0
 
 [@estoc/did-peer]: https://github.com/estoc-net/did-peer
+[@estoc/agent-core]: https://github.com/estoc-net/agent-core
+[@estoc/keystore]: https://github.com/estoc-net/keystore
 [didcomm-mediator]: https://github.com/estoc-net/didcomm-mediator

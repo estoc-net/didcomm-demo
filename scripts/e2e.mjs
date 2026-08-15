@@ -57,10 +57,12 @@ async function mintProfile(page, name, invitationUrl = null) {
   }
   await page.click('button:has-text("Mint identity")');
   await page.waitForSelector('text=live delivery on', { timeout: 20000 });
-  const did = await page.evaluate(() => {
-    const state = JSON.parse(localStorage.getItem("estoc-didcomm-demo:v1"));
-    return state.profiles[0].did;
-  });
+  // The rail's DID chip carries the full public DID as its title.
+  await page.waitForFunction(
+    () => document.querySelector(".did-chip")?.getAttribute("title")?.startsWith("did:peer:4"),
+    { timeout: 20000 }
+  );
+  const did = await page.getAttribute(".did-chip", "title");
   if (!did || !did.startsWith("did:peer:4")) {
     throw new Error(`${name} has no public did:peer:4 after mediation`);
   }
@@ -161,7 +163,7 @@ try {
     fail(`profile message shows ${profileLayers} layers, expected 4`);
   }
 
-  // Refresh survival: history and identity come back from localStorage.
+  // Refresh survival: history and identity come back from the OPFS vault.
   await bob.reload();
   await expectBubble(bob, "hello bob");
   await bob.waitForSelector("text=live delivery on", { timeout: 20000 });

@@ -1,33 +1,19 @@
-import type { Secret } from "@estoc/did-peer";
+import type { AgentStatus, ChatMessage, EnvelopeLayer } from "@estoc/agent-core";
+
+export type { AgentStatus, ChatMessage, EnvelopeLayer };
 
 /**
- * One captured layer of a message's envelope onion, in transmission order for
- * sent messages and peeling order for received ones. `payload` is the exact
- * wire object, pretty-printed; `visibleTo` names who can read this layer.
+ * What the UI renders: reactive views mirrored from a profile's vault. The
+ * vault (in OPFS, via @estoc/agent-core) is the record; these are
+ * projections kept in step by agent events.
  */
-export interface EnvelopeLayer {
-  kind: "plaintext" | "authcrypt" | "anoncrypt" | "forward";
-  title: string;
-  payload: string;
-  visibleTo: string;
-  note: string;
-}
-
-export interface ChatMessage {
-  /** the plaintext message id — also the dedup key */
-  id: string;
-  /** absent means an ordinary chat message (pre-profile history) */
-  kind?: "chat" | "profile";
-  direction: "sent" | "received";
-  /** the counterparty's public DID */
-  contactDid: string;
-  content: string;
-  time: number;
-  layers: EnvelopeLayer[];
-}
 
 export interface Contact {
+  /** the contact's cid in the vault */
+  cid: string;
+  /** their current DID */
   did: string;
+  /** our petname for them */
   label: string;
   /**
    * The displayName the contact announced over user-profile/1.0 — what they
@@ -38,27 +24,12 @@ export interface Contact {
 }
 
 export interface ProfileData {
+  /** the vault's directory name under OPFS `vaults/` */
   id: string;
   name: string;
   mediatorDid: string;
-  /** the DID the mediator knows — service is the queue transport */
-  didForMediator: AgentKeys;
   /** the public DID, minted after mediate-grant with the routing DID as its service */
   did: string | null;
-  secrets: Secret[];
   contacts: Contact[];
   messages: ChatMessage[];
-  /** DIDs our profile has been announced to, so each hears it exactly once */
-  profileSharedWith: string[];
 }
-
-export interface AgentKeys {
-  did: string;
-  secrets: Secret[];
-}
-
-export type AgentStatus =
-  | { state: "idle" }
-  | { state: "connecting"; detail: string }
-  | { state: "live" }
-  | { state: "error"; detail: string };
